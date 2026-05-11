@@ -8,8 +8,15 @@ st.set_page_config(
 )
 
 TECH_ACTIONS_DONE = [
-    "Appel", "SMS", "Mail", "Message vocal", "Relance patient",
-    "Relance médecin", "Relance pharmacie", "Autre"
+    "Appel sans réponse",
+    "Patient joint",
+    "Message vocal laissé",
+    "SMS envoyé",
+    "Mail envoyé",
+    "Relance patient",
+    "Relance médecin",
+    "Relance pharmacie",
+    "Autre"
 ]
 
 NEXT_ACTIONS = [
@@ -50,6 +57,8 @@ def create_demo_data():
         {
             "case_id": "DOSSIER-001",
             "annotation_status": "À traiter",
+            "dossier_status": "Rouge",
+            "dossier_source": "Pharmacie",
             "followup_category": "Suivi technique",
             "action_done": "",
             "contact_attempt_count": 0,
@@ -79,6 +88,8 @@ def create_demo_data():
         {
             "case_id": "DOSSIER-002",
             "annotation_status": "À traiter",
+            "dossier_status": "Orange",
+            "dossier_source": "Entreprise",
             "followup_category": "Information médicale obtenue",
             "action_done": "",
             "contact_attempt_count": 1,
@@ -120,7 +131,7 @@ def compute_libelle_suivi(values):
     attempts = int(values.get("contact_attempt_count") or 0)
     next_action = values.get("next_action", "")
 
-    if category in ["Suivi technique", "Pas de réponse / tentative de contact"]:
+    if category == "Suivi technique":
         if attempts >= 6 or next_action == "Dossier clos":
             return "Rien_Technique"
         return "Suivi_Technique"
@@ -174,12 +185,28 @@ with st.sidebar:
         ["À suivre", "En cours", "Tous les dossiers"]
     )
 
+    status_filter = st.selectbox(
+        "Filtrer par statut",
+        ["Tous", "Rouge", "Orange"]
+    )
+
+    source_filter = st.selectbox(
+        "Filtrer par source",
+        ["Toutes", "Pharmacie", "Entreprise"]
+    )
+
     side_view = df.copy()
 
     if view_mode == "À suivre":
         side_view = side_view[side_view["annotation_status"] != "Validé"]
     elif view_mode == "En cours":
         side_view = side_view[side_view["annotation_status"] == "En cours"]
+
+    if status_filter != "Tous":
+        side_view = side_view[side_view["dossier_status"] == status_filter]
+
+    if source_filter != "Toutes":
+        side_view = side_view[side_view["dossier_source"] == source_filter]
 
     ids = side_view.index.tolist()
 
@@ -190,7 +217,12 @@ with st.sidebar:
     selected = st.selectbox(
         "Dossier",
         ids,
-        format_func=lambda i: f"Dossier #{i + 1} · {df.loc[i, 'annotation_status']}"
+        format_func=lambda i: (
+            f"{df.loc[i, 'case_id']} · "
+            f"Statut : {df.loc[i, 'dossier_status']} · "
+            f"Source : {df.loc[i, 'dossier_source']} · "
+            f"{df.loc[i, 'annotation_status']}"
+        )
     )
 
     st.session_state.current_idx = selected
@@ -222,6 +254,9 @@ with left:
 
     st.divider()
 
+    st.info("**Statut :** rouge / orange")
+    st.info("**Source :** pharmacie / entreprise")
+
     st.write("**Identité patient :** Nom / Prénom")
     st.write("**Téléphone :** 06 00 00 00 00")
     st.write("**Âge du patient :** 65 ans")
@@ -229,9 +264,9 @@ with left:
     st.write("**Statut annotation :**", safe_get(row, "annotation_status", "À traiter"))
 
     st.info(
-        "La partie ci-dessus mime les données réelles qui pourraient venir de SkinApp Expertise. "
-        "Cette interface peut être intégrée comme continuité de l’outil existant sur SkinApp, "
-        "ou fonctionner comme un outil indépendant affiché en parallèle."
+        "La partie ci-dessus mime les données réelles issues de SkinApp Expertise : "
+        "galerie d’images, données patient, télé-expertise, statut du dossier rouge/orange "
+        "et source du dossier pharmacie/entreprise."
     )
 
 with right:
@@ -243,11 +278,10 @@ with right:
 
     with c1:
         followup_category = st.radio(
-            "Premier tri",
+            "Situation du suivi",
             [
                 "Suivi technique",
                 "Information médicale obtenue",
-                "Pas de réponse / tentative de contact",
             ],
             index=0,
         )
@@ -408,18 +442,18 @@ with right:
     st.markdown("#### 3) Validation")
 
     st.success(
-        f"Libellé de suivi calculé automatiquement : {libelle_suivi_calcule}"
+        f"Libellé standard calculé automatiquement : {libelle_suivi_calcule}"
     )
 
     override = st.checkbox(
-        "Corriger manuellement le libellé de suivi"
+        "Corriger manuellement le libellé standard"
     )
 
     libelle_suivi_manuel = ""
 
     if override:
         libelle_suivi_manuel = st.selectbox(
-            "Libellé de suivi manuel",
+            "Libellé standard manuel",
             LIBELLES_SUIVI,
             index=LIBELLES_SUIVI.index(libelle_suivi_calcule),
         )
