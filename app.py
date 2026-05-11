@@ -288,7 +288,7 @@ with right:
         doctor_name = st.text_input(
             "Nom du médecin, dermatologue ou centre médical",
             value=str(safe_get(row, "doctor_name", "")),
-            placeholder="Ex. Dr Dupont, Centre dermatologique..."
+            placeholder="Ex. Dr Dermato, Centre dermatologique, hôpital, etc..."
         )
 
         doctor_phone = st.text_input(
@@ -425,7 +425,7 @@ with right:
         )
 
     nurse_notes = st.text_area(
-        "Notes infirmière",
+        "Notes infirmières",
         value=str(safe_get(row, "nurse_notes", "")),
         height=90,
         placeholder="Saisir ici les informations utiles au suivi."
